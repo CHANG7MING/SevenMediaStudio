@@ -1,0 +1,10 @@
+Use case: illustration-story
+Asset type: transparent reusable right-side subject for a GitHub README hero
+
+Create a new SevenVisual illustration for the current SevenMedia Studio website: local compression of video, image, and audio with before/after file-size verification. Preserve the recurring rounded young Chinese man and the single gray tabby cat from the canonical identity reference.
+
+The man uses one hand to place three tangible media cards—video, image, and audio—into a compact physical media workstation. A visibly smaller file card exits on the other side with a simple blue check mark. The same cat, with white muzzle, white paws, three forehead stripes, gray back stripes, long curved tail, and orange collar, sits awake and watches the output.
+
+Use one coherent front-three-quarter viewpoint. The workstation's real front control plane faces both the man and camera. Use editorial manga ink, varied black outlines, rounded proportions, circular halftone gray, muted blue for sources, muted purple for processing, blue for verification, and orange only for the collar.
+
+Transparent background, generous padding, no cropped subject. Exactly one man and one cat. No text, letters, numbers, logos, watermark, scissors, timeline, editing UI, format conversion, desktop-client promise, dog, extra animal, glasses, stick figure, 3D, photorealism, glossy gradients, or generic dashboard.
