@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent, WheelEvent } from "react";
 import { useRouter } from "next/navigation";
 import { AudioOutlined, CheckCircleFilled, DownloadOutlined, HomeOutlined, PictureOutlined, PlusOutlined, ReloadOutlined, UploadOutlined, VideoCameraOutlined } from "@ant-design/icons";
 import { Button, ConfigProvider, Segmented, Slider, Tooltip, theme as antdTheme } from "antd";
@@ -60,9 +61,151 @@ function MediaIcon({ kind, size = 18 }: { kind: MediaKind; size?: number }) {
 function Preview({ kind, url, name, fallbackUrl }: { kind: MediaKind; url: string; name: string; fallbackUrl?: string }) {
   const [useFallback, setUseFallback] = useState(false);
   useEffect(() => setUseFallback(false), [url]);
-  if (kind === "image") return <img src={url} alt={name} />;
+  if (kind === "image") return <ZoomableImage src={url} alt={name} />;
   if (kind === "video") return <div className="video-preview-wrap"><video src={useFallback && fallbackUrl ? fallbackUrl : url} controls preload="metadata" onError={() => fallbackUrl && setUseFallback(true)} />{useFallback && <span>原编码不受浏览器支持，正在使用兼容预览；压缩仍基于原文件。</span>}</div>;
   return <div className="audio-preview"><AudioOutlined style={{ fontSize: 36 }} /><audio src={url} controls preload="metadata" /></div>;
+}
+
+function clampScale(value: number) {
+  return Math.min(5, Math.max(1, value));
+}
+
+function distance(first: { x: number; y: number }, second: { x: number; y: number }) {
+  return Math.hypot(first.x - second.x, first.y - second.y);
+}
+
+function center(first: { x: number; y: number }, second: { x: number; y: number }) {
+  return { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
+}
+
+function ZoomableImage({ src, alt }: { src: string; alt: string }) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const scaleRef = useRef(1);
+  const offsetRef = useRef({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const gestureRef = useRef<{
+    mode: "drag" | "pinch";
+    pointerId?: number;
+    startPoint?: { x: number; y: number };
+    startDistance?: number;
+    startCenter?: { x: number; y: number };
+    startScale: number;
+    startOffset: { x: number; y: number };
+  }>({ mode: "drag", startScale: 1, startOffset: { x: 0, y: 0 } });
+
+  const updateTransform = (nextScale: number, nextOffset: { x: number; y: number }) => {
+    const safeScale = clampScale(nextScale);
+    const safeOffset = safeScale === 1 ? { x: 0, y: 0 } : nextOffset;
+    scaleRef.current = safeScale;
+    offsetRef.current = safeOffset;
+    setScale(safeScale);
+    setOffset(safeOffset);
+  };
+
+  useEffect(() => {
+    scaleRef.current = 1;
+    offsetRef.current = { x: 0, y: 0 };
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
+  }, [src]);
+
+  const localPoint = (clientX: number, clientY: number) => {
+    const rect = viewportRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return { x: clientX - (rect.left + rect.width / 2), y: clientY - (rect.top + rect.height / 2) };
+  };
+
+  const zoomAt = (nextScale: number, clientX: number, clientY: number) => {
+    const currentScale = scaleRef.current;
+    const currentOffset = offsetRef.current;
+    const safeScale = clampScale(nextScale);
+    if (safeScale === currentScale) return;
+    const point = localPoint(clientX, clientY);
+    const ratio = safeScale / currentScale;
+    updateTransform(safeScale, {
+      x: point.x - (point.x - currentOffset.x) * ratio,
+      y: point.y - (point.y - currentOffset.y) * ratio,
+    });
+  };
+
+  const reset = () => updateTransform(1, { x: 0, y: 0 });
+
+  const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const factor = event.deltaY < 0 ? 1.12 : 0.89;
+    zoomAt(scaleRef.current * factor, event.clientX, event.clientY);
+  };
+
+  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (pointersRef.current.size >= 2) {
+      const [first, second] = [...pointersRef.current.values()];
+      gestureRef.current = {
+        mode: "pinch",
+        startDistance: distance(first, second),
+        startCenter: center(first, second),
+        startScale: scaleRef.current,
+        startOffset: offsetRef.current,
+      };
+      return;
+    }
+    gestureRef.current = {
+      mode: "drag",
+      pointerId: event.pointerId,
+      startPoint: { x: event.clientX, y: event.clientY },
+      startScale: scaleRef.current,
+      startOffset: offsetRef.current,
+    };
+  };
+
+  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!pointersRef.current.has(event.pointerId)) return;
+    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const pointers = [...pointersRef.current.values()];
+    const gesture = gestureRef.current;
+    if (pointers.length >= 2 && gesture.mode === "pinch" && gesture.startDistance && gesture.startCenter) {
+      const nextCenter = center(pointers[0], pointers[1]);
+      const nextScale = clampScale(gesture.startScale * (distance(pointers[0], pointers[1]) / gesture.startDistance));
+      const startCenter = localPoint(gesture.startCenter.x, gesture.startCenter.y);
+      const currentCenter = localPoint(nextCenter.x, nextCenter.y);
+      const ratio = nextScale / gesture.startScale;
+      updateTransform(nextScale, {
+        x: startCenter.x - (startCenter.x - gesture.startOffset.x) * ratio + currentCenter.x - startCenter.x,
+        y: startCenter.y - (startCenter.y - gesture.startOffset.y) * ratio + currentCenter.y - startCenter.y,
+      });
+      return;
+    }
+    if (pointers.length === 1 && gesture.mode === "drag" && gesture.pointerId === event.pointerId && gesture.startPoint && scaleRef.current > 1) {
+      updateTransform(scaleRef.current, {
+        x: gesture.startOffset.x + event.clientX - gesture.startPoint.x,
+        y: gesture.startOffset.y + event.clientY - gesture.startPoint.y,
+      });
+    }
+  };
+
+  const handlePointerEnd = (event: PointerEvent<HTMLDivElement>) => {
+    pointersRef.current.delete(event.pointerId);
+    if (pointersRef.current.size === 1) {
+      const [pointerId, point] = [...pointersRef.current.entries()][0];
+      gestureRef.current = {
+        mode: "drag",
+        pointerId,
+        startPoint: point,
+        startScale: scaleRef.current,
+        startOffset: offsetRef.current,
+      };
+    }
+  };
+
+  return <div ref={viewportRef} className={`image-zoom-viewport ${scale > 1 ? "is-zoomed" : ""}`} onWheel={handleWheel} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerEnd} onPointerCancel={handlePointerEnd} onDoubleClick={reset} aria-label={`${alt}，滚轮或双指缩放，拖动查看`} role="img">
+    <img src={src} alt={alt} draggable={false} style={{ transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${scale})` }} />
+    {scale > 1 && <button type="button" className="image-zoom-reset" onPointerDown={(event) => event.stopPropagation()} onClick={reset}>重置</button>}
+    <span className="image-zoom-hint">{scale > 1 ? `${Math.round(scale * 100)}% · 拖动查看` : "滚轮 / 双指缩放"}</span>
+  </div>;
 }
 
 export default function CompressionWorkspace({ initialKind }: { initialKind: MediaKind }) {
@@ -93,10 +236,14 @@ export default function CompressionWorkspace({ initialKind }: { initialKind: Med
     document.body.classList.add("compress-active");
     return () => {
       document.body.classList.remove("compress-active");
+      document.body.classList.remove("compress-result-active");
       if (sourceUrlRef.current) URL.revokeObjectURL(sourceUrlRef.current);
       if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current);
     };
   }, []);
+  useEffect(() => {
+    document.body.classList.toggle("compress-result-active", status === "done" && kind !== "image");
+  }, [status]);
   const clear = () => {
     uploadAbortRef.current?.abort(); uploadAbortRef.current = null;
     if (uploadeessionRef.current) { void fetch(`/api/uploads/${uploadeessionRef.current}`, { method: "DELETE" }); uploadeessionRef.current = ""; }
@@ -183,7 +330,7 @@ export default function CompressionWorkspace({ initialKind }: { initialKind: Med
       <div className="compress-shell">
           <aside className="media-nav compress-nav"><div className="compress-brand-row"><button className="brand compress-brand" disabled={status === "working"} onClick={() => router.push("/")}><i /><span>SevenMedia</span></button><Tooltip title="返回首页"><Button type="text" disabled={status === "working"} icon={<HomeOutlined />} onClick={() => router.push("/")} aria-label="返回首页" /></Tooltip></div><p>媒体类型</p>{(Object.keys(MEDIA) as MediaKind[]).map((item) => <button key={item} disabled={status === "working"} className={kind === item ? "active" : ""} onClick={() => navigate(item)}><i><MediaIcon kind={item} /></i><span>{MEDIA[item].label}<small>{MEDIA[item].hint}</small></span></button>)}<div className="compress-nav-foot"><span><i />离线引擎<small>所有处理均在本机完成</small></span><Tooltip title={dark ? "切换到浅色" : "切换到深色"}><Button type="text" className="theme-svg-button" onClick={toggleTheme} icon={<img src={dark ? "/icons/theme-sun.svg" : "/icons/theme-moon.svg"} alt="" />} aria-label="切换主题" /></Tooltip></div></aside>
           <section className="stage">
-            {status === "done" && file && result ? <div className="comparison">
+    {status === "done" && file && result ? <div className={`comparison ${kind === "image" ? "comparison-image" : ""}`}>
               <div className="comparison-head"><div><CheckCircleFilled /><span>压缩完成</span></div><Button type="text" icon={<ReloadOutlined />} onClick={clear}>新任务</Button></div>
               <div className="preview-grid"><article><span>压缩前</span><div className="preview"><Preview kind={kind} url={sourceUrl} name={file.name} fallbackUrl={kind === "video" ? result.url : undefined} /></div><footer><strong>{file.name}</strong><b>{formatBytes(file.size)}</b></footer></article><article className="after"><span>压缩后 · 节省 {saving.toFixed(0)}%</span><div className="preview"><Preview kind={kind} url={result.url} name={result.name} /></div><footer><strong>{result.name}</strong><b>{formatBytes(result.size)}</b></footer></article></div>
               <a className="download" href={result.url} download={result.name}><DownloadOutlined /> 下载压缩文件</a>
