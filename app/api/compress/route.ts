@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { compressMedia } from "@/lib/compress";
+import { compressMedia, compressionErrorMessage } from "@/lib/compress";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -22,6 +22,6 @@ export async function POST(request: NextRequest) {
       "x-output-name": encodeURIComponent(result.name), "cache-control": "no-store",
     }});
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "压缩失败" }, { status: 500 });
+    return NextResponse.json({ error: compressionErrorMessage(error) }, { status: 500 });
   }
 }
