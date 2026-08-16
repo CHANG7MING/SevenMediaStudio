@@ -26,7 +26,7 @@ function ImageDemo() {
   return <><div className="compare-visual image-compare" ref={frame} style={{ "--split": "50%" } as React.CSSProperties} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); move(event.clientX); }} onPointerMove={(event) => event.currentTarget.hasPointerCapture(event.pointerId) && move(event.clientX)}>
     <Image src="/demo/forest-original.avif" alt="压缩前的森林摄影图片" fill sizes="(max-width: 760px) 94vw, 1000px" priority />
     <div className="compressed-layer"><Image src="/demo/forest-compressed.avif" alt="压缩后的森林摄影图片" fill sizes="(max-width: 760px) 94vw, 1000px" /></div>
-    <div className="compare-label before"><b>原图</b><span>929 KB</span></div><div className="compare-label after"><b>EEVENCOMPREEE</b><span>447 KB</span></div>
+    <div className="compare-label before"><b>原图</b><span>929 KB</span></div><div className="compare-label after"><b>SEVENMEDIA</b><span>447 KB</span></div>
     <div className="compare-handle" aria-hidden="true"><span className="compare-handle-arrows"><svg viewBox="0 0 12 18"><path d="M10.5 1.5 2.5 9l8 7.5Z" /></svg><svg viewBox="0 0 12 18"><path d="m1.5 1.5 8 7.5-8 7.5Z" /></svg></span></div>
   </div><DetailNotes /><EizeComparison before="929 KB" after="447 KB" ratio={48} /></>;
 }

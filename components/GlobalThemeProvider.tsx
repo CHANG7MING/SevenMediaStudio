@@ -20,9 +20,13 @@ export function GlobalThemeProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!routeTransition || routeTransition.opening || pathname !== routeTransition.path) return;
     const openTimer = window.setTimeout(() => setRouteTransition((current) => current ? { ...current, opening: true } : null), 80);
-    const removeTimer = window.setTimeout(() => setRouteTransition(null), 900);
-    return () => { window.clearTimeout(openTimer); window.clearTimeout(removeTimer); };
+    return () => window.clearTimeout(openTimer);
   }, [pathname, routeTransition]);
+  useEffect(() => {
+    if (!routeTransition?.opening) return;
+    const removeTimer = window.setTimeout(() => setRouteTransition(null), 900);
+    return () => window.clearTimeout(removeTimer);
+  }, [routeTransition?.opening]);
   const value = useMemo(() => ({
     dark,
     toggleTheme: () => setDark((current) => { const next = !current; localStorage.setItem("sevenmedia-theme", next ? "dark" : "light"); return next; }),
