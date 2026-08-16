@@ -8,6 +8,7 @@ import { compressMediaFile, compressionErrorMessage } from "./compress";
 
 export const MAX_UPLOAD_SIZE = 5 * 1024 ** 3;
 export const CHUNK_SIZE = 16 * 1024 ** 2;
+const MIN_PROCESS_RESERVE = 256 * 1024 ** 2;
 const ROOT = path.join(tmpdir(), "seven-media-browser");
 const saveQueues = new Map<string, Promise<void>>();
 
@@ -32,8 +33,13 @@ export async function createSession(input: Pick<UploadSession, "name" | "mime" |
   await mkdir(ROOT, { recursive: true });
   const disk = await statfs(ROOT);
   const available = disk.bavail * disk.bsize;
-  const reserve = Math.max(2 * 1024 ** 3, Math.ceil(input.size * 1.25));
-  if (available < input.size + reserve) throw new Error(`磁盘空间不足；处理该文件建议至少保留 ${Math.ceil((input.size + reserve) / 1024 ** 3)}GB 可用空间。`);
+  const targetBytes = input.targetMB * 1024 ** 2;
+  const reserve = Math.max(MIN_PROCESS_RESERVE, Math.ceil(targetBytes * 1.25));
+  const required = input.size + reserve;
+  if (available < required) {
+    const requiredMB = Math.ceil(required / 1024 ** 2);
+    throw new Error(`磁盘空间不足；上传和处理该文件至少需要约 ${requiredMB} MB 可用空间。`);
+  }
   const session: UploadSession = { ...input, id: randomUUID(), received: 0, status: "uploading", message: "准备接收文件", compressionProgress: 0, createdAt: Date.now() };
   await mkdir(sessionDir(session.id), { recursive: true });
   await writeFile(inputPath(session.id), new Uint8Array());
