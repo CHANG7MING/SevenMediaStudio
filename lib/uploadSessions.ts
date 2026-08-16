@@ -9,7 +9,7 @@ import { compressMediaFile, compressionErrorMessage } from "./compress";
 export const MAX_UPLOAD_SIZE = 5 * 1024 ** 3;
 export const CHUNK_SIZE = 16 * 1024 ** 2;
 const MIN_PROCESS_RESERVE = 256 * 1024 ** 2;
-const ROOT = path.join(tmpdir(), "seven-media-browser");
+const ROOT = path.resolve(process.env.SEVEN_MEDIA_DATA_DIR || path.join(tmpdir(), "seven-media-browser"));
 const saveQueues = new Map<string, Promise<void>>();
 
 export type UploadStatus = "uploading" | "queued" | "compressing" | "done" | "error" | "cancelled";
@@ -48,7 +48,15 @@ export async function createSession(input: Pick<UploadSession, "name" | "mime" |
 }
 
 export async function getSession(id: string): Promise<UploadSession> {
-  const raw = await readFile(metaPath(id), "utf8");
+  let raw: string;
+  try {
+    raw = await readFile(metaPath(id), "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new Error("上传任务已失效：服务器上的临时文件不存在，请重新上传。线上部署请配置持久化磁盘。");
+    }
+    throw error;
+  }
   try {
     return JSON.parse(raw) as UploadSession;
   } catch {
