@@ -82,6 +82,16 @@ npm run build
 npm run start
 ```
 
+## 桌面端 Foundation 开发
+
+桌面端使用 Tauri 2，当前 Foundation 阶段仍复用 Next.js 开发服务器作为前端入口：
+
+```powershell
+npm run desktop:dev
+```
+
+桌面运行时的本地设置、任务和预设使用应用数据目录中的 JSON 文件保存，不依赖网络或数据库。生产静态打包会在 Web API 与桌面本地桥接完成分离后接入。
+
 ## 技术组成
 
 - Next.js 15 与 React 19

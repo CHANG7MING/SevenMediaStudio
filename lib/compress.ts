@@ -149,8 +149,6 @@ export async function compressMedia(buffer: Buffer, name: string, mime: string, 
     const total = options.targetMB * 1024 * 1024 * 8 / seconds / 1000 * .95;
     if (isVideo) {
       const audio = 64, video = Math.max(180, Math.floor(total - audio));
-      const minimum = seconds * (180 + audio) * 1000 / 8 / 1024 / 1024 / .95;
-      if (total < 244) throw new Error(`目标 ${options.targetMB} MB 过小；按当前时长建议至少 ${minimum.toFixed(1)} MB。`);
       const passlog = path.join(folder, "pass");
       const webm = extension === ".webm";
       const videoCodec = webm ? "libvpx-vp9" : extension === ".avi" ? "mpeg4" : "libx264";
@@ -167,7 +165,7 @@ export async function compressMedia(buffer: Buffer, name: string, mime: string, 
       await execute(executable("ffmpeg"), ["-y", "-i", input, "-vn", "-c:a", codec, ...(codec === "flac" || codec.startsWith("pcm_" ) ? [] : ["-b:a", `${bitrate}k`]), ...format, output]);
     }
     const result = await readFile(output);
-    assertTarget(result.length);
+    if (!isVideo) assertTarget(result.length);
     return { buffer: result, name: outputName, mime: MIME[extension] || mime };
   } finally { await rm(folder, { recursive: true, force: true }); }
 }
@@ -193,8 +191,6 @@ export async function compressMediaFile(input: string, name: string, mime: strin
   const total = options.targetMB * 1024 * 1024 * 8 / seconds / 1000 * .95;
   if (type === "video") {
     const audio = 64, video = Math.max(180, Math.floor(total - audio));
-    const minimum = seconds * (180 + audio) * 1000 / 8 / 1024 / 1024 / .95;
-    if (total < 244) throw new Error(`目标 ${options.targetMB} MB 过小；按当前时长建议至少 ${minimum.toFixed(1)} MB。`);
     const passlog = path.join(path.dirname(output), "pass");
     const webm = extension === ".webm";
     const videoCodec = webm ? "libvpx-vp9" : extension === ".avi" ? "mpeg4" : "libx264";
@@ -211,6 +207,6 @@ export async function compressMediaFile(input: string, name: string, mime: strin
     await executeWithProgress(executable("ffmpeg"), ["-y", "-i", input, "-vn", "-c:a", codec, ...(codec === "flac" || codec.startsWith("pcm_") ? [] : ["-b:a", `${bitrate}k`]), ...format, output], seconds, options.onProgress);
   }
   const info = await stat(output);
-  if (info.size > limit * 1.05) throw new Error(`目标 ${options.targetMB} MB 过小；当前结果约 ${(info.size / 1024 / 1024).toFixed(1)} MB。`);
+  if (type !== "video" && info.size > limit * 1.05) throw new Error(`目标 ${options.targetMB} MB 过小；当前结果约 ${(info.size / 1024 / 1024).toFixed(1)} MB。`);
   return { path: output, name: outputName, mime: MIME[extension] || mime, size: info.size };
 }

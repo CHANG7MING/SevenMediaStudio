@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types --experimental-default-type=module \"lib/**/*.test.ts\"",
+    "desktop:dev": "tauri dev",
+    "desktop:info": "tauri info"
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
@@ -18,6 +21,8 @@
     "sharp": "^0.34.5"
   },
   "devDependencies": {
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/cli": "^2.11.4",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
