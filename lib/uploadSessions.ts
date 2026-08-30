@@ -133,4 +133,5 @@ export async function resultInfo(id: string) {
   if (session.status !== "done" || !session.outputName) throw new Error("结果尚未生成");
   const info = await stat(outputPath(id, session.name)); return { session, info };
 }
+export function resultFilePath(id: string, name: string) { return outputPath(id, name); }
 export function resultStream(id: string, name: string) { return Readable.toWeb(createReadStream(outputPath(id, name))); }

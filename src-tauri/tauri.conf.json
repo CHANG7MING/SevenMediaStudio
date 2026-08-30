@@ -2,12 +2,12 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "SevenMediaStudio",
   "version": "0.1.0",
-  "identifier": "com.sevenmediastudio.app",
+  "identifier": "com.sevenmediastudio.desktop",
   "build": {
-    "frontendDist": "../out",
+    "frontendDist": "placeholder",
     "devUrl": "http://localhost:3000",
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "beforeDevCommand": "npm run web:dev",
+    "beforeBuildCommand": "npm run build:desktop"
   },
   "app": {
     "windows": [
@@ -25,7 +25,13 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["dmg"],
+    "resources": {
+      "../.next/standalone": "server",
+      "../runtime/node": "runtime/node",
+      "../runtime/ffmpeg": "runtime/ffmpeg",
+      "../runtime/ffprobe": "runtime/ffprobe"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

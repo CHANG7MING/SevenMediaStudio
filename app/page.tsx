@@ -1,5 +1,5 @@
-import LandingWorkspace from "@/components/LandingWorkspace";
+import CompressionWorkspace from "@/components/CompressionWorkspace";
 
 export default function Home() {
-  return <LandingWorkspace />;
+  return <CompressionWorkspace initialKind="video" />;
 }
