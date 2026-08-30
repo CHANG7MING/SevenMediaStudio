@@ -1,6 +1,8 @@
 use serde::Serialize;
 use std::{
+  fs,
   net::TcpStream,
+  path::PathBuf,
   process::{Child, Command, Stdio},
   sync::Mutex,
   thread,
@@ -26,12 +28,23 @@ struct ServerProcess(Mutex<Option<Child>>);
 
 const SERVER_PORT: u16 = 47831;
 
+fn prepare_media_runtime(app: &tauri::AppHandle, resource_dir: &std::path::Path) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error>> {
+  let runtime_dir = app.path().app_local_data_dir()?.join("runtime");
+  fs::create_dir_all(&runtime_dir)?;
+  let install = |name: &str| -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let source = resource_dir.join("runtime").join(name);
+    let destination = runtime_dir.join(name);
+    fs::copy(source, &destination)?;
+    Ok(destination)
+  };
+  Ok((install("ffmpeg")?, install("ffprobe")?))
+}
+
 fn start_production_server(app: &tauri::AppHandle) -> Result<Child, Box<dyn std::error::Error>> {
   let resource_dir = app.path().resource_dir()?;
   let server_dir = resource_dir.join("server");
   let node = resource_dir.join("runtime/node");
-  let ffmpeg = resource_dir.join("runtime/ffmpeg");
-  let ffprobe = resource_dir.join("runtime/ffprobe");
+  let (ffmpeg, ffprobe) = prepare_media_runtime(app, &resource_dir)?;
 
   let child = Command::new(node)
     .arg(server_dir.join("server.js"))

@@ -46,6 +46,13 @@ function formatBytes(value: number) {
   return `${(value / 1024 ** index).toFixed(index > 1 ? 2 : 0)} ${units[index]}`;
 }
 function extension(name: string) { return name.split(".").pop()?.toLowerCase() || ""; }
+function timestampedName(name: string) {
+  const dot = name.lastIndexOf(".");
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const suffix = dot > 0 ? name.slice(dot) : "";
+  const timestamp = new Date().toISOString().replace(/\D/g, "").slice(0, 17);
+  return `${stem}-${timestamp}${suffix}`;
+}
 function fileKind(file: File): MediaKind | null {
   const byExtension = EXT_KIND[extension(file.name)];
   if (byExtension) return byExtension;
@@ -351,7 +358,7 @@ export default function CompressionWorkspace({ initialKind }: { initialKind: Med
     if (!selectedTasks.length || downloadProgress !== null) return;
     const ids = selectedTasks.map((task) => task.result!.url.split("/")[3]).filter(Boolean);
     const url = ids.length === 1 ? `${selectedTasks[0].result!.url}?download=1` : `/api/uploads/batch-result?${ids.map((id) => `id=${encodeURIComponent(id)}`).join("&")}`;
-    const fileName = ids.length === 1 ? selectedTasks[0].result!.name : "seven-media-compressed.zip";
+    const fileName = timestampedName(ids.length === 1 ? selectedTasks[0].result!.name : "seven-media-compressed.zip");
     const isDesktop = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
     if (!isDesktop) { const link = document.createElement("a"); link.href = url; link.download = fileName; link.click(); return; }
     try {
