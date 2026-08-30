@@ -360,7 +360,7 @@ export default function CompressionWorkspace({ initialKind }: { initialKind: Med
       const selectedPath = await save({ defaultPath: fileName, title: "保存压缩文件" });
       if (!selectedPath) return;
       const response = await fetch(url);
-      if (!response.ok) throw new Error("无法读取压缩结果");
+      if (!response.ok) throw new Error(await responseError(response, ids.length > 1 ? "无法创建批量压缩包" : "无法读取压缩结果"));
       const total = Number(response.headers.get("content-length")) || selectedTasks.reduce((sum, task) => sum + (task.result?.size || 0), 0);
       const handle = await open(selectedPath, { write: true, create: true, truncate: true });
       let written = 0; setDownloadProgress(0);
@@ -382,7 +382,7 @@ export default function CompressionWorkspace({ initialKind }: { initialKind: Med
         setTasks((current) => current.map((task) => task.id === selectedTasks[0]?.id ? { ...task, resultAvailable: false } : task));
         setMessage("无法读取压缩结果，无法下载，请重新压缩。");
       } else {
-        setMessage(ids.length > 1 ? "批量压缩包创建失败，请稍后重试。" : errorMessage);
+        setMessage(ids.length > 1 ? `批量压缩包导出失败：${errorMessage}` : errorMessage);
       }
       setMessageTone("error");
     }
