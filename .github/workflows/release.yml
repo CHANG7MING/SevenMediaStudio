@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-13
+          - runner: macos-15-intel
             arch: x86_64
             target: x86_64-apple-darwin
           - runner: macos-14
@@ -53,6 +53,13 @@ jobs:
             macOS 安装包：
             - Apple Silicon: aarch64 DMG
             - Intel: x86_64 DMG
+
+            首次安装：
+            1. 打开 DMG，将 SevenMediaStudio 拖入 Applications（应用程序）。
+            2. 在 Applications 中右键 SevenMediaStudio，选择“打开”。
+            3. 在系统提示中再次点击“打开”。以后可以直接双击启动。
+
+            本版本使用 ad-hoc 签名，不需要终端命令。请勿直接双击首次启动；如果安装过旧版本，请先用本 Release 中的新版本覆盖。
           releaseDraft: false
           prerelease: false
           args: --target ${{ matrix.target }} --bundles dmg
