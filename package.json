@@ -1,6 +1,6 @@
 {
   "name": "seven-media-studio",
-  "version": "0.1.3",
+  "version": "0.1.5",
   "private": true,
   "scripts": {
     "dev": "tauri dev",
