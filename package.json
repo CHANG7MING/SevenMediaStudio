@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "tauri dev",
     "web:dev": "next dev",
+    "tauri": "tauri",
     "build": "next build",
     "build:desktop": "npm run build && node scripts/prepare-desktop-runtime.mjs",
     "start": "next start",
