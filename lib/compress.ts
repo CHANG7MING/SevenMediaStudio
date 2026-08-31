@@ -19,6 +19,17 @@ const MIME: Record<string, string> = {
 function executable(name: "ffmpeg" | "ffprobe") {
   const configured = process.env[name === "ffmpeg" ? "FFMPEG_PATH" : "FFPROBE_PATH"];
   if (configured && existsSync(configured)) return configured;
+  // Desktop launchers often provide a reduced PATH. Cover the common macOS and
+  // Linux package locations before falling back to PATH resolution.
+  const common = process.platform === "darwin"
+    ? [
+        `/opt/homebrew/bin/${name}`,
+        `/usr/local/bin/${name}`,
+        `/usr/bin/${name}`,
+      ]
+    : [`/usr/bin/${name}`, `/usr/local/bin/${name}`];
+  const installedCommon = common.find((candidate) => existsSync(candidate));
+  if (installedCommon) return installedCommon;
   if (process.platform !== "win32") return name;
   const root = path.join(process.env.LOCALAPPDATA || "", "Microsoft", "WinGet", "Packages");
   const find = (folder: string): string | undefined => {

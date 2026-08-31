@@ -55,10 +55,12 @@ function timestampedName(name: string) {
 }
 function fileKind(file: File): MediaKind | null {
   const byExtension = EXT_KIND[extension(file.name)];
-  if (byExtension) return byExtension;
-  if (file.type.startsWith("video/")) return "video";
-  if (file.type.startsWith("audio/")) return "audio";
-  if (file.type.startsWith("image/")) return "image";
+  const mime = file.type.toLowerCase().split(";", 1)[0];
+  const byMime = mime.startsWith("video/") ? "video" : mime.startsWith("audio/") ? "audio" : mime.startsWith("image/") ? "image" : null;
+  // Some browsers report an empty or generic MIME type for dragged files. Use
+  // the known extension in that case, while rejecting a clear MIME mismatch.
+  if (byExtension && (!byMime || byMime === byExtension || mime === "application/octet-stream")) return byExtension;
+  if (byMime) return byMime;
   return null;
 }
 function MediaIcon({ kind, size = 18 }: { kind: MediaKind; size?: number }) {
@@ -363,13 +365,18 @@ export default function CompressionWorkspace({ initialKind }: { initialKind: Med
     if (!isDesktop) { const link = document.createElement("a"); link.href = url; link.download = fileName; link.click(); return; }
     try {
       const { save } = await import("@tauri-apps/plugin-dialog");
-      const { open } = await import("@tauri-apps/plugin-fs");
+      const { open, exists } = await import("@tauri-apps/plugin-fs");
       const selectedPath = await save({ defaultPath: fileName, title: "保存压缩文件" });
       if (!selectedPath) return;
+      // Never truncate an existing file: the save dialog path is user-controlled and
+      // can point at a previous export even when the default name is timestamped.
+      if (await exists(selectedPath)) {
+        throw new Error("目标文件已存在，请选择其他文件名；原文件未被覆盖。");
+      }
       const response = await fetch(url);
       if (!response.ok) throw new Error(await responseError(response, ids.length > 1 ? "无法创建批量压缩包" : "无法读取压缩结果"));
       const total = Number(response.headers.get("content-length")) || selectedTasks.reduce((sum, task) => sum + (task.result?.size || 0), 0);
-      const handle = await open(selectedPath, { write: true, create: true, truncate: true });
+      const handle = await open(selectedPath, { write: true, create: true, truncate: false });
       let written = 0; setDownloadProgress(0);
       try {
         if (response.body) {
