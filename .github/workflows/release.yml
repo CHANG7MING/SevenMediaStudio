@@ -12,6 +12,7 @@ permissions:
 jobs:
   release:
     name: Build ${{ matrix.arch }} DMG
+    if: startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
@@ -19,7 +20,7 @@ jobs:
           - runner: macos-15-intel
             arch: x86_64
             target: x86_64-apple-darwin
-          - runner: macos-14
+          - runner: macos-15
             arch: aarch64
             target: aarch64-apple-darwin
     runs-on: ${{ matrix.runner }}
@@ -39,6 +40,9 @@ jobs:
       - name: Install media runtime
         run: brew install ffmpeg
 
+      - name: Test runtime packaging
+        run: npm run test:runtime
+
       - name: Install Rust target
         run: rustup target add ${{ matrix.target }}
 
@@ -50,16 +54,43 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: SevenMediaStudio ${{ github.ref_name }}
           releaseBody: |
+            修复桌面版视频和音频无法压缩的问题：安装包现已包含 FFmpeg、FFprobe 及完整运行依赖，无需另外安装 Homebrew。
+            失败提示会显示具体原因，便于定位文件或引擎问题。
+
             macOS 安装包：
             - Apple Silicon: aarch64 DMG
             - Intel: x86_64 DMG
 
-            首次安装：
-            1. 打开 DMG，将 SevenMediaStudio 拖入 Applications（应用程序）。
-            2. 在 Applications 中右键 SevenMediaStudio，选择“打开”。
-            3. 在系统提示中再次点击“打开”。以后可以直接双击启动。
+            安装或更新：
+            1. 完全退出正在运行的 SevenMediaStudio。
+            2. 打开对应芯片的 DMG，将 SevenMediaStudio 拖入 Applications（应用程序），覆盖旧版本。
+            3. 从 Applications 重新打开应用。
 
-            本版本使用 ad-hoc 签名，不需要终端命令。请勿直接双击首次启动；如果安装过旧版本，请先用本 Release 中的新版本覆盖。
-          releaseDraft: false
+            本版本使用 ad-hoc 签名，尚未经过 Apple 公证。首次打开可能需要按 macOS「系统设置 → 隐私与安全性」中的提示允许打开。详见 https://support.apple.com/102445 。
+          releaseDraft: true
           prerelease: false
           args: --target ${{ matrix.target }} --bundles dmg
+
+      - name: Verify bundled video engine
+        env:
+          RUNTIME_DIR: src-tauri/target/${{ matrix.target }}/release/bundle/macos/SevenMediaStudio.app/Contents/Resources/runtime
+        run: |
+          "$RUNTIME_DIR/ffmpeg" -v error -y -f lavfi -i testsrc2=size=320x180:rate=24 -t 1 -c:v libx264 -pix_fmt yuv420p "$RUNNER_TEMP/seven-media-smoke.mp4"
+          "$RUNTIME_DIR/ffprobe" -v error -show_entries format=duration -of default=nw=1:nk=1 "$RUNNER_TEMP/seven-media-smoke.mp4"
+
+  publish:
+    name: Publish verified installers
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish both architectures together
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          for arch in aarch64 x64; do
+            expected="SevenMediaStudio_${RELEASE_TAG#v}_${arch}.dmg"
+            gh release view "$RELEASE_TAG" --json assets --jq '.assets' | jq -e --arg name "$expected" 'any(.[]; .name == $name and .size > 0)'
+          done
+          gh release edit "$RELEASE_TAG" --draft=false --latest

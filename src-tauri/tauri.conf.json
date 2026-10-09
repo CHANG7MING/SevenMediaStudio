@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "SevenMediaStudio",
-  "version": "0.1.5",
+  "version": "0.1.7",
   "identifier": "com.sevenmediastudio.desktop",
   "build": {
     "frontendDist": "placeholder",
@@ -27,7 +27,9 @@
           "y": 18
         },
         "windowEffects": {
-          "effects": ["headerView"],
+          "effects": [
+            "headerView"
+          ],
           "state": "active"
         }
       }
@@ -38,15 +40,15 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["dmg"],
+    "targets": [
+      "dmg"
+    ],
     "macOS": {
       "signingIdentity": "-"
     },
     "resources": {
       "../.next/standalone": "server",
-      "../runtime/node": "runtime/node",
-      "../runtime/ffmpeg": "runtime/ffmpeg",
-      "../runtime/ffprobe": "runtime/ffprobe"
+      "../runtime": "runtime"
     },
     "icon": [
       "icons/32x32.png",

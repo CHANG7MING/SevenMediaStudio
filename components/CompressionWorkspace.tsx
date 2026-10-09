@@ -336,7 +336,8 @@ export default function CompressionWorkspace({ initialKind }: { initialKind: Med
     if (!readyTasks.length || batchBusy) return;
     setBatchBusy(true);
     setMessageTone("working");
-    let failed = false;
+    let failed = 0;
+    let firstError = "";
     let nextIndex = 0;
     const concurrency = kind === "image" ? 4 : 1;
     const worker = async () => {
@@ -346,15 +347,17 @@ export default function CompressionWorkspace({ initialKind }: { initialKind: Med
         try { await compressTask(task); }
         catch (error) {
           if (error instanceof DOMException && error.name === "AbortError") return;
-          failed = true;
-          updateTask(task.id, { status: "error", error: error instanceof Error ? error.message : "压缩失败" });
+          failed += 1;
+          const detail = error instanceof Error ? error.message : "压缩失败";
+          if (!firstError) firstError = detail;
+          updateTask(task.id, { status: "error", error: detail });
         }
       }
     };
     await Promise.all(Array.from({ length: Math.min(concurrency, readyTasks.length) }, () => worker()));
     setBatchBusy(false);
     setMessageTone(failed ? "error" : "success");
-    setMessage(failed ? "部分任务处理失败，请重试失败项目。" : "批量任务处理完成。");
+    setMessage(failed ? `${failed} 个任务处理失败：${firstError}` : "批量任务处理完成。");
   };
   const download = async () => {
     if (!selectedTasks.length || downloadProgress !== null) return;

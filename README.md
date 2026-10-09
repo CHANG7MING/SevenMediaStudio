@@ -7,6 +7,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/CHANG7MING/SevenMediaStudio/releases/latest">下载桌面版</a> ·
   <a href="#本地运行">本地运行</a> ·
   <a href="#支持的媒体">支持的媒体</a> ·
   <a href="#部署说明">部署说明</a>
@@ -69,7 +70,7 @@ ffprobe -version
 
 ```powershell
 npm install
-npm run dev
+npm run web:dev
 ```
 
 打开 [http://localhost:3000](http://localhost:3000)。
@@ -82,15 +83,23 @@ npm run build
 npm run start
 ```
 
-## 桌面端 Foundation 开发
+## 桌面端开发与打包
 
-桌面端使用 Tauri 2，当前 Foundation 阶段仍复用 Next.js 开发服务器作为前端入口：
+桌面端使用 Tauri 2，开发时连接 Next.js 开发服务器（需要 Rust 与 macOS Command Line Tools）：
 
 ```powershell
 npm run desktop:dev
 ```
 
-桌面运行时的本地设置、任务和预设使用应用数据目录中的 JSON 文件保存，不依赖网络或数据库。生产静态打包会在 Web API 与桌面本地桥接完成分离后接入。
+构建 macOS 安装包：
+
+```sh
+npm run tauri -- build --bundles dmg
+```
+
+安装包包含 Next.js 服务、Node.js、FFmpeg、FFprobe 及其非系统动态库，使用者无需另外安装 Homebrew 或 FFmpeg。打包脚本会递归收集动态库、改写相对加载路径并重新签名；如果依赖缺失或引擎无法启动，构建会失败。可通过 `FFMPEG_PATH` 和 `FFPROBE_PATH` 指定打包所用的引擎。
+
+桌面运行时会将媒体引擎和动态库一起复制到应用数据目录后启动。只复制 `ffmpeg`、`ffprobe` 两个文件会导致依赖 Homebrew 的构建在另一台机器或 Homebrew 升级后无法压缩；遇到“压缩引擎启动失败”时，请重新构建并安装完整的新版应用。
 
 ## 技术组成
 
@@ -115,7 +124,7 @@ npm run desktop:dev
 
 ## 当前边界
 
-- 当前版本只提供媒体压缩，不包含格式转换、视频剪辑或桌面客户端。
+- 当前版本只提供媒体压缩，不包含格式转换或视频剪辑。
 - 目标体积无法脱离媒体时长、分辨率和编解码器限制；过小目标会被拒绝并给出建议。
 - 任务文件保存在 `SEVEN_MEDIA_DATA_DIR` 指定的目录中；生产部署应补充定时清理、容量监控与访问控制。
 

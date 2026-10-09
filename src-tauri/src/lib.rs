@@ -28,13 +28,38 @@ struct ServerProcess(Mutex<Option<Child>>);
 
 const SERVER_PORT: u16 = 47831;
 
+fn copy_runtime_libraries(source: &std::path::Path, destination: &std::path::Path) -> std::io::Result<()> {
+  fs::create_dir_all(destination)?;
+  for entry in fs::read_dir(source)? {
+    let entry = entry?;
+    let target = destination.join(entry.file_name());
+    if entry.file_type()?.is_dir() {
+      copy_runtime_libraries(&entry.path(), &target)?;
+    } else {
+      fs::copy(entry.path(), target)?;
+    }
+  }
+  Ok(())
+}
+
 fn prepare_media_runtime(app: &tauri::AppHandle, resource_dir: &std::path::Path) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error>> {
   let runtime_dir = app.path().app_local_data_dir()?.join("runtime");
   fs::create_dir_all(&runtime_dir)?;
+  // FFmpeg's @loader_path references must remain valid after moving the tools
+  // into app data. Static builds do not need this directory.
+  let libraries = resource_dir.join("runtime/lib");
+  if libraries.exists() {
+    copy_runtime_libraries(&libraries, &runtime_dir.join("lib"))?;
+  }
   let install = |name: &str| -> Result<PathBuf, Box<dyn std::error::Error>> {
     let source = resource_dir.join("runtime").join(name);
     let destination = runtime_dir.join(name);
     fs::copy(source, &destination)?;
+    #[cfg(unix)]
+    {
+      use std::os::unix::fs::PermissionsExt;
+      fs::set_permissions(&destination, fs::Permissions::from_mode(0o755))?;
+    }
     Ok(destination)
   };
   Ok((install("ffmpeg")?, install("ffprobe")?))

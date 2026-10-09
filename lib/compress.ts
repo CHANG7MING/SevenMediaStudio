@@ -89,6 +89,12 @@ async function executeWithProgress(command: string, args: string[], seconds: num
 
 export function compressionErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : "压缩失败";
+  if (/Library not loaded:|error while loading shared libraries|dyld\[\d+\]/i.test(message)) {
+    return "压缩引擎启动失败：缺少运行依赖，请重新安装最新版本的桌面应用。";
+  }
+  if (/spawn .*ff(?:mpeg|probe).*ENOENT/i.test(message)) {
+    return "未找到视频压缩引擎：桌面版请重新安装应用；源码运行请安装 FFmpeg 和 FFprobe。";
+  }
   if (/Unable to choose an output format|Invalid argument|Error initializing the muxer|Error opening output file/i.test(message)) {
     return "压缩失败：当前文件格式无法生成结果，请确认文件完整后重试。";
   }
